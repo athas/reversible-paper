@@ -29,7 +29,12 @@
 
 %%%%% YOUR ABSTRACT %%%%%
 \begin{abstract}
-This is the text of the abstract.
+  We investigate the embedding of reversible fragments in a
+  non-reversible general-purpose programming language, with the
+  primary motivation being the expressivity provided by the guarantees
+  of reversibility, not the possibility of execution on reversible
+  hardware.  We make use of the type system to enforce separation of
+  reversible and nonreversible functions.
 \end{abstract}
 
 
@@ -42,9 +47,25 @@ reversible computing, haskell, domain-specific language, quantum computing, lamb
 %%%%% YOUR CONTENT %%%%%
 \section{Introduction}
 
-The text of the paper begins here.
-
-
+Reversible circuits hold the promise of fundamentally improving the
+energy efficiency of computers, and much effort has been spent on
+constructing physical devices capable of performing computation in
+reverse.  In parallel, programming languages for the writing of
+reversible programs have been developed, although they have not yet
+seen much traction for general-purpose programming.  We conjecture
+that one part of the reason may be that fully reversible programs can
+be somewhat cumbersome to write, and that reversible computers have
+not yet materialised to a degree that the effort is rewarded by the
+promises of lower power consumption.  On the other hand,
+\cite{YokoyamaGlueck:2007:Janus} shows, by the development of a
+program for simulating the Schrödinger equation, that reversible
+computation can have immediate benefits even on conventional hardware.
+We investigate how reversible constructs have been embedded in a
+general-purpose nonreversible language, specifically reversible
+quantum operations in a library for doing quantum computing in
+Haskell, the tradeoffs necessary for the technique to be efficient
+(ie. avoiding a full computation history), and compare the result to
+Janus.
 
 \section{Section 2}
 Reversible computing is interesting and builds on work by Bennett~\cite{Bennett:1982}. Applications of these principles can be found in~\cite{ThomsenAxelsen:2009:PPL,YokoyamaGlueck:2007:Janus}.
