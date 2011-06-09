@@ -6,9 +6,32 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 
+module Reversible ( RVar,
+                    RVal(..),
+                    RComp,
+                    R,
+                    RIO,
+                    (!),
+                    mkV,
+                    con,
+                    runRIO,
+                    applyR,
+                    rev,
+                    (!>),
+                    (+=),
+                    (-=),
+                    (^=),
+                    cond,
+                    rlet,
+                    skip,
+                    (<=>)
+  )
+  where
+
 import Control.Applicative
 import Control.Monad
 import Control.Monad.ST
+import Data.Bits
 import Data.STRef
 import Data.Monoid as Monoid
 
@@ -50,7 +73,6 @@ type RIO s = ST s
 runRIO :: (forall s. ST s a) -> a
 runRIO = runST
 
--- R functions
 instance Monoid (R s) where
     mempty = RReturn
     mappend RReturn u = u
@@ -75,12 +97,16 @@ binop :: forall a b v s.RVal v s b => (a->b->a) -> (a->b->a) -> RVar s a
 binop f finv x y = Binop f finv x y RReturn
 
 infix 2 +=
-(+=) :: forall v s.RVal v s Integer => RVar s Integer -> v s Integer -> R s
+(+=) :: forall v s a. Num a => RVal v s a => RVar s a -> v s a -> R s
 v1 += v2 = binop (+) (-) v1 v2
 
 infix 2 -=
-(-=) :: forall v s.RVal v s Integer => RVar s Integer -> v s Integer -> R s
+(-=) :: forall v s a. Num a => RVal v s a => RVar s a -> v s a -> R s
 v1 -= v2 = binop (-) (+) v1 v2
+
+infix 2 ^=
+(^=) :: forall v s a.Bits a => RVal v s a => RVar s a -> v s a -> R s
+v1 ^= v2 = binop xor xor v1 v2
 
 infixr 1 !>
 (!>) :: R s -> R s -> R s
@@ -110,31 +136,3 @@ applyR (Binop f _ v1 v2 u) = do writeV v1 =<< liftM2 f (value v1) (value v2)
                                 applyR u
 applyR (Rlet x f u) = do applyR =<< (f <$> mkV x)
                          applyR u
-
-fibf :: RVar s Integer -> RVar s Integer -> RVar s Integer -> R s
-fibf rn rx1 rx2 =
-  cond (con (==0) ! rn)
-  (rx1 += con 1 !> rx2 += con 1)
-  (rn -= con 1 !>
-   fibf rn rx1 rx2 !>
-   rx1 += rx2 !>
-   rx1 <=> rx2)
-  (con (==) ! rx1 ! rx2)
-
-test :: Integer -> RIO s (Integer, Integer)
-test n = do
-  rn  <- mkV n
-  rx1 <- mkV 0
-  rx2 <- mkV 0
-  applyR $ fibf rn rx1 rx2
-  v1 <- value rx1
-  v2 <- value rx2
-  return (v1,v2)
-
-test2 :: Integer -> Integer -> RIO s Integer
-test2 x1 x2 = do
-  rx1 <- mkV x1
-  rx2 <- mkV x2
-  rn <- mkV 0
-  applyR $ rev $ fibf rn rx1 rx2
-  value rn
