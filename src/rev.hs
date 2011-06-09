@@ -4,6 +4,7 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 import Control.Applicative
 import Control.Monad
@@ -11,45 +12,38 @@ import Control.Monad.ST
 import Data.STRef
 import Data.Monoid as Monoid
 
-data RVal s a = RVal (STRef s a)
-              | Con a
-              | Oper (RIO s a)
-
-instance Functor (RVal s) where
-  f `fmap` x = Oper $ do x' <- peekV x
-                         return $ f x'
-
-instance Applicative (RVal s) where
-  pure = Con
-  f <*> b = Oper $ do f' <- peekV f
-                      b' <- peekV b
-                      return $ f' b'
-
-class RValue v s a where
+class RVal v s a where
   value :: v s a -> RIO s a
 
-instance RValue RVal s a where
-  value = peekV
+newtype RComp s a = RComp (RIO s a)
 
-con :: a -> RVal s a
-con = Con
+instance RVal RComp s a where
+  value (RComp c) = c
 
-mkV :: a -> RIO s (RVal s a)
-mkV v = RVal <$> newSTRef v
+infixl 1 !
+(!) :: (RVal v1 s (a -> b), RVal v2 s a) => v1 s (a -> b) -> v2 s a -> RComp s b
+a ! b = RComp $ value a `ap` value b
 
-peekV :: RVal s a -> RIO s a
-peekV (RVal v) = readSTRef v
-peekV (Con a) = return a
-peekV (Oper m) = m
+con :: a -> RComp s a
+con = RComp . return
 
-writeV :: RVal s a -> a -> RIO s ()
-writeV (RVal v) = writeSTRef v
+newtype RVar s a = RVar (STRef s a)
+
+mkV :: a -> RIO s (RVar s a)
+mkV v = RVar <$> newSTRef v
+
+instance RVal RVar s a where
+  value (RVar v) = readSTRef v
+
+writeV :: RVar s a -> a -> RIO s ()
+writeV (RVar v) = writeSTRef v
 
 data R s = RReturn
-         | forall a.Swap (RVal s a) (RVal s a) (R s)
-         | Cond (RVal s Bool) (R s) (R s) (RVal s Bool) (R s)
-         | forall a b.Binop (a->b->a) (a->b->a) (RVal s a) (RVal s b) (R s)
-         | forall a.Rlet a (RVal s a -> R s) (R s)
+         | forall a.Swap (RVar s a) (RVar s a) (R s)
+         | forall v1 v2.(RVal v1 s Bool, RVal v2 s Bool) =>
+           Cond (v1 s Bool) (R s) (R s) (v2 s Bool) (R s)
+         | forall a b v.RVal v s b=>Binop (a->b->a) (a->b->a) (RVar s a) (v s b) (R s)
+         | forall a.Rlet a (RVar s a -> R s) (R s)
 
 type RIO s = ST s
 
@@ -69,28 +63,30 @@ skip :: R s
 skip = RReturn
 
 infix 2 <=>
-(<=>) :: (RVal s a) -> (RVal s a) -> R s
+(<=>) :: RVar s a -> RVar s a -> R s
 x <=> y = Swap x y RReturn
 
-cond :: RVal s Bool -> R s -> R s -> RVal s Bool -> R s
+cond :: forall s v1 v2.(RVal v1 s Bool, RVal v2 s Bool) =>
+        v1 s Bool -> R s -> R s -> v2 s Bool -> R s
 cond pre f1 f2 post = Cond pre f1 f2 post RReturn
 
-binop :: (a->b->a) -> (a->b->a) -> RVal s a -> RVal s b -> R s
+binop :: forall a b v s.RVal v s b => (a->b->a) -> (a->b->a) -> RVar s a
+      -> v s b -> R s
 binop f finv x y = Binop f finv x y RReturn
 
 infix 2 +=
-(+=) :: RVal s Integer -> RVal s Integer -> R s
+(+=) :: forall v s.RVal v s Integer => RVar s Integer -> v s Integer -> R s
 v1 += v2 = binop (+) (-) v1 v2
 
 infix 2 -=
-(-=) :: RVal s Integer -> RVal s Integer -> R s
+(-=) :: forall v s.RVal v s Integer => RVar s Integer -> v s Integer -> R s
 v1 -= v2 = binop (-) (+) v1 v2
 
 infixr 1 !>
 (!>) :: R s -> R s -> R s
 (!>) = mappend
 
-rlet :: a -> (RVal s a -> R s) -> R s
+rlet :: a -> (RVar s a -> R s) -> R s
 rlet x f = Rlet x f RReturn
 
 rev :: R s -> R s
@@ -102,29 +98,28 @@ rev (Rlet x f u) = rev u !> rlet x (rev . f)
 
 applyR :: R s -> RIO s ()
 applyR RReturn = return ()
-applyR (Cond pre f1 f2 _ u) = do pre' <- peekV pre
+applyR (Cond pre f1 f2 _ u) = do pre' <- value pre
                                  applyR $ if pre' then f1 else f2
                                  applyR u
-applyR (Swap rx ry u) = do x <- peekV rx
-                           y <- peekV ry
+applyR (Swap rx ry u) = do x <- value rx
+                           y <- value ry
                            writeV rx y
                            writeV ry x
                            applyR u
-applyR (Binop f _ v1 v2 u) = do writeV v1 =<< liftM2 f (peekV v1) (peekV v2)
+applyR (Binop f _ v1 v2 u) = do writeV v1 =<< liftM2 f (value v1) (value v2)
                                 applyR u
 applyR (Rlet x f u) = do applyR =<< (f <$> mkV x)
                          applyR u
 
-fibf :: RVal s Integer -> RVal s Integer -> RVal s Integer -> R s
+fibf :: RVar s Integer -> RVar s Integer -> RVar s Integer -> R s
 fibf rn rx1 rx2 =
-  cond (liftA (==0) rn)
-  (rx1 += con 1 !>
-   rx2 += con 1)
+  cond (con (==0) ! rn)
+  (rx1 += con 1 !> rx2 += con 1)
   (rn -= con 1 !>
    fibf rn rx1 rx2 !>
    rx1 += rx2 !>
    rx1 <=> rx2)
-  (liftA2 (==) rx1 rx2)
+  (con (==) ! rx1 ! rx2)
 
 test :: Integer -> RIO s (Integer, Integer)
 test n = do
@@ -132,8 +127,8 @@ test n = do
   rx1 <- mkV 0
   rx2 <- mkV 0
   applyR $ fibf rn rx1 rx2
-  v1 <- peekV rx1
-  v2 <- peekV rx2
+  v1 <- value rx1
+  v2 <- value rx2
   return (v1,v2)
 
 test2 :: Integer -> Integer -> RIO s Integer
@@ -142,4 +137,4 @@ test2 x1 x2 = do
   rx2 <- mkV x2
   rn <- mkV 0
   applyR $ rev $ fibf rn rx1 rx2
-  peekV rn
+  value rn
