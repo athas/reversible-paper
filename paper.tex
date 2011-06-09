@@ -76,7 +76,25 @@ in~\cite{ThomsenAxelsen:2009:PPL,YokoyamaGlueck:2007:Janus}.
 
 \section{A reversible $\lambda$-calculus}
 \cite{huelsbergen1996logically} defines the lambda calculus equivalent of a
-turing machine with a history tape, by means of a $\lambda$ interpreter machine written in SML called SECD-H.
+turing machine with a history tape, by means of a lambda calculus interpreter
+machine written in SML called SECD-H.
+
+SECD-H is structured such that no parts of it ever irreversibly erases any
+data, and because of this it is argued that is holds the potential of being a
+way to execute execute lambda calculus programs on reversible hardware.
+
+The entire execution history is logged to preserve reversibility. So for this
+to have any value as a reversible component in an otherwise non-reversible
+programming language, one must either store the execution history together with
+the result of the reversible computation in order to be able to subsequently
+reconstruct the initial state, or just reverse the history straight away, to
+free the space used by the history log. The latter option will probably be more
+desirable in most cases, as the initial arguments are always available, and the
+history must contain the initial arguments as well. Thus, the advantages of
+this approach are that of being able to run lambda calculus programs (and by
+extension also programs in most functional languages) without releasing heat
+from information erasure on hardware that supports it.
+
 
 \section{Embedded reversible computation in Haskell}
 
