@@ -78,6 +78,28 @@ in~\cite{ThomsenAxelsen:2009:PPL,YokoyamaGlueck:2007:Janus}.
 \cite{huelsbergen1996logically} defines the lambda calculus equivalent of a
 turing machine with a history tape, by means of a $\lambda$ interpreter machine written in SML called SECD-H.
 
+\section{Embedded reversible computation in Haskell}
+
+As part of the quantum computing library, QIO, presented in
+\cite{altenkirchquantum}, a facility for expressing reversible
+(\textit{unitary}) is presented.  QIO models reversible computations
+as monoids of operations that change the state of the (quantum)
+machine, with the identity element being an empty computation, and the
+binary operation being sequential computation.  A discussion of
+quantum computing is outside the scope of this paper, and we will
+restrict ourselves to those parts of QIO that are relevant to the
+subject of embedded reversible computing.
+
+A number of primitive operations are provided, including negation (for
+qbits - we can consider them standard booleans), introducing local
+variables, and performing conditional branching.  In order for the
+latter to be reversible, neither branch may change the state used in
+the conditional, a limitation born from the choice to use neither
+computation history or postconditional assertions in the branch.  This
+is a serious limitation on the power of the reversible language, and
+while it may be acceptable in a subpart of a greater whole (such as
+the whole quantum computing library), we cannot accept such a
+limitation.
 
 \section{Conclusion}
 
