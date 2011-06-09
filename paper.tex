@@ -2,6 +2,7 @@
 
 %%%%% YOUR PACKAGES %%%%%
 \usepackage{amsmath}
+\usepackage{verbatim}
 
 %%%%% END %%%%%
 
@@ -79,6 +80,12 @@ Reversible computing is interesting and builds on work by Bennett~\cite{Bennett:
 
 \section{Embedded reversible computation in Haskell}
 
+In this section we will explore an existing implementation of
+reversible operations and analyse its suitability for our needs.  This
+implementation is written in the pure functional programming language
+Haskell, although our observations do not depend on any of the unusual
+features of Haskell.
+
 As part of the quantum computing library, QIO, presented in
 \cite{altenkirchquantum}, a facility for expressing reversible
 (\textit{unitary}) is presented.  QIO models reversible computations
@@ -101,7 +108,7 @@ well-understood method in the literature, we choose to preserve it in
 our own library.
 
 A number of primitive operations are provided, including negation (for
-qbits), introducing local variables, and performing conditional
+qubits), introducing local variables, and performing conditional
 branching.  In order for the latter to be reversible, neither branch
 may change the state used in the conditional, a limitation born from
 the choice to use neither computation history or postconditional
@@ -110,14 +117,30 @@ of the reversible language, and while it may be acceptable in a
 subpart of a greater whole (such as the whole quantum computing
 library), we cannot accept such a limitation.
 
+QIO has only a single native data type --- the qubit --- and while it
+has a facility for creating other types, such as integers, these are
+required to be represented in terms of qubits.  This is appropriate
+when the library is intended to model a specific machine at a low
+level, but unsuitable for our needs, as we explicitly disavow
+considerations of physical implementations of reversibility.  Thus, we
+wish for a way to make use of native language data types, for example
+integers, floats and strings, as well as an easy way to transfer
+values from the non-reversible parts of the program to the parts
+implemented via reversible operations.
+
 \section{Conclusion}
 
-
-
+We have constructed a language similar to Janus that can make some use
+of Haskell functions and data types, although usage is still somewhat
+cumbersome, and arrays are not implemented.  The language is useful
+for prototyping reversible algorithms and studying reversible
+programming techniques, and the implementation is easy to extend and
+suitable for experimenting with language extensions.  Work
+continues...
 
 %%%%% YOUR ACKNOWLEDGEMENTS %%%%%
-\acks
-Acknowledgments, if needed.
+%\acks
+%Acknowledgments, if needed.
 
 
 
@@ -130,8 +153,17 @@ Acknowledgments, if needed.
 \appendix
 \section{Appendix Title}
 
-This is the text of the appendix, if you need one.
+\subsection{Library source code}
+
+\tiny{
+\verbatiminput{src/Reversible.hs}
+}
 
 
+\subsection{Fibonacci program}
+
+\tiny{
+\verbatiminput{src/test.hs}
+}
 
 \end{document}
