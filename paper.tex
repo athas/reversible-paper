@@ -71,10 +71,10 @@ library for doing quantum computing in Haskell, the tradeoffs
 necessary for the technique to be efficient (ie. avoiding a full
 computation history), and compare the result to Janus.
 
-\section{Section 2}
-Reversible computing is interesting and builds on work by
-Bennett~\cite{Bennett:1982}. Applications of these principles can be found
-in~\cite{ThomsenAxelsen:2009:PPL,YokoyamaGlueck:2007:Janus}.
+%\section{Section 2}
+%Reversible computing is interesting and builds on work by
+%Bennett~\cite{Bennett:1982}. Applications of these principles can be found
+%in~\cite{ThomsenAxelsen:2009:PPL,YokoyamaGlueck:2007:Janus}.
 
 
 \section{A reversible $\lambda$-calculus}
@@ -101,13 +101,13 @@ programs in most functional languages) without releasing heat from information
 erasure on hardware that supports it, at the expense of a guaranteed overhead
 in terms of both space and time of at least a factor of two.
 
-\section{Embedded reversible computation in Haskell}
+\section{Existing embedded reversible languages}
 
 In this section we will explore an existing implementation of
 reversible operations and analyse its suitability for our needs.  This
 implementation is written in the pure functional programming language
-Haskell, although our observations do not depend on any of the unusual
-features of Haskell.
+Haskell, although our observations do not depend on any unusual
+language features.
 
 As part of the quantum computing library, QIO, presented in
 \cite{altenkirchquantum}, a facility for expressing reversible
@@ -150,6 +150,33 @@ wish for a way to make use of native language data types, for example
 integers, floats and strings, as well as an easy way to transfer
 values from the non-reversible parts of the program to the parts
 implemented via reversible operations.
+
+\section{The \texttt{Reversible} library}
+
+We define a Haskell data type \texttt{RVar s a} to represent mutable
+variables of Haskell type \texttt{a}\footnote{The type variable
+  \texttt{s} is a phantom type to prevent variables from escaping the
+  scope in which they were defined.}, as well as the class
+\texttt{RVal s a} of all types that represent rvalues of type
+\texttt{a} in the reversible language.  A mutable variable can of
+course be used as an rvalue, as can a constant, and an application of
+an arbitrary pure Haskell function to any other rvalue.  The function
+\texttt{con} is used to transform a Haskell of any type into a value
+that is an instance of \texttt{RVal s a}.  A reversible computation is
+of type \texttt{R s}, which is an instance of \texttt{Monoid}.  The
+function \texttt{rev :: R s -> R s} is used to reverse a computation.
+
+Use of the library is divided into two tasks:
+
+\begin{enumerate}
+\item Using the \texttt{mkV} function to set up the variables that the
+  program will act upon , executing a computation of type \texttt{R
+    s}, then extracting values from the variables that the computation
+  is expected to leave its results in.  This happens in the
+  \texttt{RIO} monad, which can be executed as a pure function with
+  \texttt{runRIO}.
+\item Writing a reversible computation via the Janus-like constructs provided by the library.
+\end{enumerate}
 
 \section{Conclusion}
 
